@@ -1,4 +1,7 @@
 # 参考URL
+<br><br>
+主に下記URL先の"出走表"タブ・"直前情報"タブ・"結果"タブのデータを取得する
+
 - 通常（異常なし）レース
 <br><br>
 https://www.boatrace.jp/owpc/pc/race/raceresult?rno=3&jcd=01&hd=20211003
