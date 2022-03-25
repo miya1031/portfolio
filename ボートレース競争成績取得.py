@@ -18,10 +18,10 @@ import time
 class OutputURL():
     def __init__(self,year,month,day,place):
         '''
-        year:(int)
-        month:(int)
-        day:(int)
-        place:(str)
+        year:(int) 年
+        month:(int) 月
+        day:(int) 日
+        place:(str) 開催場
         '''
         self.year = year
         self.month = month
@@ -34,6 +34,8 @@ class OutputURL():
         self.beforeinfo_url = None
     def OutputResultURL(self,r_num):
         '''
+        (self.year)年(self.month)月(self.day)日の(self.place)ボートレース場の(r_num)の
+        競争成績のURLを出力する
         r_num:(int) レース番号
         '''
         self.result_url = 'https://www.boatrace.jp/owpc/pc/race/raceresult?rno='+str(r_num)+'&jcd='+self.p_num+'&hd='+str(self.year)+str(self.month).zfill(2)+str(self.day).zfill(2)
@@ -41,6 +43,8 @@ class OutputURL():
     
     def OutputRacelistURL(self,r_num):
         '''
+        (self.year)年(self.month)月(self.day)日の(self.place)ボートレース場の(r_num)の
+        競走表のURLを出力する
         r_num:(int) レース番号
         '''
         self.racelist_url = 'https://www.boatrace.jp/owpc/pc/race/racelist?rno='+str(r_num)+'&jcd='+self.p_num+'&hd='+str(self.year)+str(self.month).zfill(2)+str(self.day).zfill(2)
@@ -48,6 +52,8 @@ class OutputURL():
     
     def OutputBeforeInfoURL(self,r_num):
         '''
+        (self.year)年(self.month)月(self.day)日の(self.place)ボートレース場の(r_num)の
+        直前情報のURLを出力する
         r_num:(int) レース番号
         '''
         self.beforeinfo_url = 'https://www.boatrace.jp/owpc/pc/race/beforeinfo?rno='+str(r_num)+'&jcd='+self.p_num+'&hd='+str(self.year)+str(self.month).zfill(2)+str(self.day).zfill(2)
@@ -58,10 +64,15 @@ def OutputWindDirection(soup):
     soup:htmlデータ
     
     ボートレース結果URLのhtmlを読み解くと風向を表す画像は番号で管理されている。
-    その管理方法は1番が北、2番が北北東、16番が北北西だと思われる。
+    # その管理方法は1番が北、2番が北北東、16番が北北西だと思われる。
+    その管理方法は1番が南、2番が南南西、16番が南南東だと思われる。
     この法則だとしたとき、htmlデータから風速を出力する関数。
+
+    出力
+    w_d:(str) 風向
+    w_t:(str) ""or"追い風"or"向い風"
     '''
-    #direction = ['北','北北東','北東','東北東','東','東南東','南東','南南東','南','南南西','南西','西南西','西','西北西','北西','北北西']
+    # direction = ['北','北北東','北東','東北東','東','東南東','南東','南南東','南','南南西','南西','西南西','西','西北西','北西','北北西']
     direction = ['南','南南西','南西','西南西','西','西北西','北西','北北西','北','北北東','北東','東北東','東','東南東','南東','南南東']
     north_num = None
     wind_num = None
@@ -643,11 +654,10 @@ class OutputOneday():
             df_output = pd.read_csv(source_path,encoding='utf_8_sig')
             df_output = pd.concat([df_output,self.DF])
             df_output.to_csv('./各場データ/'+self.place+'BOATRACE競争データ.csv',encoding='utf_8_sig', index=False)
-            all_source_path = './全場BOATRACE競争データ.csv'#./はカレントディレクトリを表す。
-            df_all_output = pd.read_csv(all_source_path,encoding='utf_8_sig')
-            df_all_output = pd.concat([df_all_output,self.DF])
-#             df_all_output.to_csv('./全場BOATRACE競争データ.csv',encoding='utf_8_sig', index=False)
-            #self.DF.to_csv('./sumple('+str(self.year)+str(self.month).zfill(2)+str(self.day).zfill(2)+self.place+').csv',encoding='utf_8_sig', index=False)
+            # all_source_path = './全場BOATRACE競争データ.csv'#./はカレントディレクトリを表す。
+            # df_all_output = pd.read_csv(all_source_path,encoding='utf_8_sig')
+            # df_all_output = pd.concat([df_all_output,self.DF])
+            # df_all_output.to_csv('./全場BOATRACE競争データ.csv',encoding='utf_8_sig', index=False)
             return self.DF
 
 def daterange(_start, _end):
@@ -681,3 +691,11 @@ class PeriodOutput():
             MakeOneDayResult = OutputOneday(int(self.day_list[i][0]),int(self.day_list[i][1]),int(self.day_list[i][2]),self.place)
             MakeOneDayResult.OutputALLDFS()
 
+# ファイルの前準備
+# 1. 同ディレクトリに"各場データ"というフォルダを作成
+# 2. 同ディレクトリの"初期化.py"を実行
+# 例
+# 多摩川ボートレース場の2021年1月1日から2021年12月31日の全レースの競争成績を取得したい場合
+# ↓
+# a = PeriodOutput('2021-01-01','2021-12-31','多摩川')
+# a.AllPlaceOutput()
