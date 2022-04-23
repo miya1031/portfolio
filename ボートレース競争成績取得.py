@@ -197,9 +197,16 @@ def OutputRefund(bet_type,df):
 def OutputCause(df):#１着同着は２艇まで考える。おそらく３艇同着はない
     '''
     決まり手のデータフレームから、決まり手をリストで出力（１着同着２艇まで考慮）
+
+    2022/04/22修正
+    全艇フライングの場合は決まり手がないことを考慮する必要がある
+    参考URL
+    https://www.boatrace.jp/owpc/pc/race/raceresult?rno=5&jcd=06&hd=20210302
     '''
     cause_list = ['逃げ','差し','まくり','まくり差し','抜き','恵まれ']
-    if df.at[0,'決まり手'] in cause_list:
+    if len(df) == 0:
+        return ['']
+    elif df.at[0,'決まり手'] in cause_list:
         return [df.at[0,'決まり手']]
     else:
         for i in cause_list:
