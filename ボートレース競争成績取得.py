@@ -8,10 +8,24 @@
 # 2. 同ディレクトリの"初期化.py"を実行し、各場の"場名"+"BOATRACE競争データ.csv"のファイルを作成する
 # 
 # 例
-# 多摩川ボートレース場の2021年1月1日から2021年12月31日の全レースの競争成績を取得したい場合
+# 多摩川ボートレース場の2021年1月3日から2021年1月7日の全レース（第４２回新春特別かどまつ賞）の競争成績を取得したい場合
 # ↓
-# a = PeriodOutput('2021-01-01','2021-12-31','多摩川')
+# a = PeriodOutput('2021-01-03','2021-01-07','多摩川')
 # a.AllPlaceOutput()
+# ↓
+# "各場データ"フォルダの"多摩川BOATRACE競争データ.csv"の末尾にデータが追加される
+#
+# 多摩川ボートレース場の2021年1月3日の全レースの競争成績を取得したい場合
+# ↓
+# OutputOneday_anotherfile(2021,1,3,'多摩川')
+# ↓
+# "各場データ"フォルダに"多摩川BOATRACE2021年1月3日競走データ.csv"というファイル名でデータが保存される
+# 
+# 多摩川ボートレース場の2021年1月3日の第1レースの競争成績を取得したい場合
+# ↓
+# OutputOneRace_anotherfile(2021,1,3,1,'多摩川')
+# ↓
+# "各場データ"フォルダに"多摩川BOATRACE2021年1月3日第1R競走データ.csv"というファイル名でデータが保存される
 
 #インポート
 
@@ -146,6 +160,7 @@ def OutputOthers(soup):
     wind_power:風速
     w_temp:水温
     wave_height:波高
+    date_:何日目←2022/4/26追加
     
     htmlデータから
     その他情報を取得する関数
@@ -161,8 +176,10 @@ def OutputOthers(soup):
     except AttributeError:
         stable_boad += ''
     text_ = soup.find('h3',class_ = 'title16_titleDetail__add2020').text#string→textにすることで距離短縮の赤字距離に対応
-    text_ = text_.split()
-    r_type, dist = text_[0], text_[1]
+    #text_ = text_.split()
+    #r_type, dist = text_[0], text_[1]
+    text_ = text_.rsplit(maxsplit=1)#「予　選」などの文字列の中に空白がある場合に対応できるよう修正(2022/4/26)
+    r_type, dist = text_[0].strip(), text_[1]
     #r_type = soup.find('span',class_ = 'heading2_titleDetail is-type1').string[:soup.find('span',class_ = 'heading2_titleDetail is-type1').string.index('\u3000')]
     #dist = soup.find('span',class_ = 'heading2_titleDetail is-type1').string.replace(r_type,'').replace('\u3000','').replace('\r','').replace('\n','').replace('\t','').replace('m','')
     temp = soup.find_all('span',class_ = 'weather1_bodyUnitLabelData')[0].string.replace('\r','').replace('\n','').replace(' ','').replace('℃','')
@@ -171,7 +188,10 @@ def OutputOthers(soup):
     w_temp = soup.find_all('span',class_ = 'weather1_bodyUnitLabelData')[2].string.replace('\r','').replace('\n','').replace(' ','').replace('℃','')
     wave_height = soup.find_all('span',class_ = 'weather1_bodyUnitLabelData')[3].string.replace('\r','').replace('\n','').replace(' ','').replace('cm','')
     
-    return r_name,r_type,dist,stable_boad,temp,climate,wind_power,w_temp,wave_height
+    date_ = soup.find('li',class_ = "is-active2").text
+    date_ = date_[date_.index('日')+1:]
+
+    return r_name,r_type,dist,stable_boad,temp,climate,wind_power,w_temp,wave_height,date_
 
 def OutputRefund(bet_type,df):
     '''
@@ -273,7 +293,7 @@ class ResultScraping():
     def OutputOtherInfo(self):
         r = requests.get(self.url)
         soup = BeautifulSoup(r.content,'html.parser')
-        self.result_df['レース名'],self.result_df['レース種'],self.result_df['距離'],self.result_df['安定版/進入固定'],self.result_df['気温'],self.result_df['天候'],self.result_df['風速'],self.result_df['水温'],self.result_df['波高'] = OutputOthers(soup)
+        self.result_df['レース名'],self.result_df['レース種'],self.result_df['距離'],self.result_df['安定版/進入固定'],self.result_df['気温'],self.result_df['天候'],self.result_df['風速'],self.result_df['水温'],self.result_df['波高'],self.result_df['日目'] = OutputOthers(soup)
         self.result_df['風向'],self.result_df['風種'] = OutputWindDirection(soup)
         self.result_df['レースグレード'] = OutputRaceClass(soup)
         return self.result_df       
@@ -613,6 +633,7 @@ class OutputOneday():
                                                '月',
                                                '日',
                                                '開催日',
+                                               '日目',
                                                '開催場',
                                                'レース番号',
                                                'レース名',
@@ -713,6 +734,233 @@ class PeriodOutput():
             MakeOneDayResult = OutputOneday(int(self.day_list[i][0]),int(self.day_list[i][1]),int(self.day_list[i][2]),self.place)
             MakeOneDayResult.OutputALLDFS()
 
+# 1Rだけ別ファイルで保存する関数
+def OutputOneRace_anotherfile(year,month,day,r_num,place):
+    MakeURL = OutputURL(year,month,day,place)
+    result_url_ = MakeURL.OutputResultURL(r_num)
+    try:#URLが開けない場合（例：中止）はスキップ
+        html = urlopen(result_url_)#ここは意味ないかも。webサイト自体は存在するから
+    except HTTPError as e:
+        print(result_url_)
+    except URLError as e:
+        print(result_url_)
+    else:
+        try:
+            ResultWeb = ResultScraping(result_url_)
+        except IndexError as e:
+            print(result_url_)
+        except ValueError as e:
+            print(result_url_)
+        else:
+            racetime = None
+            SingleDf = None
+            try:
+                SingleDf = ResultWeb.OutputResult()
+            except IndexError as e:
+                print(result_url_)
+            except ValueError as e:
+                print(result_url_)
+            else:                     
+                SingleDf = ResultWeb.OutputOtherInfo()
+                racelist_url = MakeURL.OutputRacelistURL(r_num)#結果のURLが開けるなら出走表のURLの開けると仮定
+                SingleDf = pd.merge(SingleDf,RacelistScraping(racelist_url), on='枠')
+                beforeinfo_url_ = MakeURL.OutputBeforeInfoURL(r_num)#結果のURLが開けるなら直前情報のURLの開けると仮定
+                SingleDf = pd.merge(SingleDf,JustInfoScraping(beforeinfo_url_), on='枠')
+                SingleDf['年'] = year
+                SingleDf['月'] = month
+                SingleDf['日'] = day
+                SingleDf['開催日'] = datetime(year,month,day)
+                SingleDf['開催場'] = place
+                SingleDf['レース番号'] = str(r_num)
+                racetime = ResultWeb.dfs[0].loc[0,str(r_num)+'R']
+                SingleDf['締切時刻'] = racetime
+                SingleDf['締切時刻(datetime)'] = datetime(year,month,day,int(racetime[:racetime.index(':')]),int(racetime[racetime.index(':')+1:]))
+                
+
+    SingleDf = SingleDf.reindex(columns=['年',
+                                       '月',
+                                       '日',
+                                       '開催日',
+                                       '日目',
+                                       '開催場',
+                                       'レース番号',
+                                       'レース名',
+                                       'レースグレード',
+                                       'レース種',
+                                       '締切時刻',
+                                       '締切時刻(datetime)',
+                                       '距離',
+                                       '安定版/進入固定',
+                                       '着',
+                                       '決まり手',
+                                       '枠',
+                                       '進入コース',
+                                       '名前',
+                                       '登録番号',
+                                       '級別',
+                                       '支部',
+                                       '出身地',
+                                       '年齢',
+                                       '体重', 
+                                       '調整重量', 
+                                       'レースタイム',
+                                       'レースタイム（秒）',
+                                       'スタート情報', 
+                                       '展示タイム', 
+                                       '展示進入コース', 
+                                       '展示スタートタイム', 
+                                       'チルト', 
+                                       'プロペラ', 
+                                       '部品交換', 
+                                       'F数', 
+                                       'L数', 
+                                       '平均スタートタイム', 
+                                       '全国勝率', 
+                                       '全国2連対率', 
+                                       '全国3連対率', 
+                                       '当地勝率', 
+                                       '当地2連対率', 
+                                       '当地3連対率', 
+                                       'モーター番号', 
+                                       'モーター2連対率', 
+                                       'モーター3連対率', 
+                                       'ボート番号', 
+                                       'ボート2連対率', 
+                                       'ボート3連対率', 
+                                       '天候',
+                                       '気温',
+                                       '風速',
+                                       '風向',
+                                       '風種',
+                                       '水温',
+                                       '波高',
+                                       '3連単',
+                                       '3連複',
+                                       '2連単',
+                                       '2連複',
+                                       '拡連複',
+                                       '単勝',
+                                       '複勝'])
+    source_path = './各場データ/'+place+'BOATRACE'+str(year)+'年'+str(month)+'月'+str(day)+'日第'+str(r_num)+'R競走データ.csv'#./はカレントディレクトリを表す。
+    SingleDf.to_csv(source_path,encoding='utf_8_sig', index=False)
+    return SingleDf
+
+# 1日だけ別ファイルで保存する
+def OutputOneday_anotherfile(year,month,day,place):
+    MakeURL = OutputURL(year,month,day,place)
+    for r_num in range(1,13):
+        result_url_ = MakeURL.OutputResultURL(r_num)
+        try:#URLが開けない場合（例：中止）はスキップ
+            html = urlopen(result_url_)#ここは意味ないかも。webサイト自体は存在するから
+        except HTTPError as e:
+            print(result_url_)
+        except URLError as e:
+            print(result_url_)
+        else:
+            try:
+                ResultWeb = ResultScraping(result_url_)
+            except IndexError as e:
+                print(result_url_)
+            except ValueError as e:
+                print(result_url_)
+            else:
+                racetime = None
+                SingleDf = None
+                try:
+                    SingleDf = ResultWeb.OutputResult()
+                except IndexError as e:
+                    print(result_url_)
+                except ValueError as e:
+                    print(result_url_)
+                else:                     
+                    SingleDf = ResultWeb.OutputOtherInfo()
+                    racelist_url = MakeURL.OutputRacelistURL(r_num)#結果のURLが開けるなら出走表のURLの開けると仮定
+                    SingleDf = pd.merge(SingleDf,RacelistScraping(racelist_url), on='枠')
+                    beforeinfo_url_ = MakeURL.OutputBeforeInfoURL(r_num)#結果のURLが開けるなら直前情報のURLの開けると仮定
+                    SingleDf = pd.merge(SingleDf,JustInfoScraping(beforeinfo_url_), on='枠')
+                    SingleDf['年'] = year
+                    SingleDf['月'] = month
+                    SingleDf['日'] = day
+                    SingleDf['開催日'] = datetime(year,month,day)
+                    SingleDf['開催場'] = place
+                    SingleDf['レース番号'] = str(r_num)
+                    racetime = ResultWeb.dfs[0].loc[0,str(r_num)+'R']
+                    SingleDf['締切時刻'] = racetime
+                    SingleDf['締切時刻(datetime)'] = datetime(year,month,day,int(racetime[:racetime.index(':')]),int(racetime[racetime.index(':')+1:]))
+                    if r_num == 1:
+                        result_df = SingleDf
+                    else:
+                        result_df = pd.concat([result_df,SingleDf])
+
+                time.sleep(1)
+    result_df = result_df.reindex(columns=['年',
+                                       '月',
+                                       '日',
+                                       '開催日',
+                                       '日目',
+                                       '開催場',
+                                       'レース番号',
+                                       'レース名',
+                                       'レースグレード',
+                                       'レース種',
+                                       '締切時刻',
+                                       '締切時刻(datetime)',
+                                       '距離',
+                                       '安定版/進入固定',
+                                       '着',
+                                       '決まり手',
+                                       '枠',
+                                       '進入コース',
+                                       '名前',
+                                       '登録番号',
+                                       '級別',
+                                       '支部',
+                                       '出身地',
+                                       '年齢',
+                                       '体重', 
+                                       '調整重量', 
+                                       'レースタイム',
+                                       'レースタイム（秒）',
+                                       'スタート情報', 
+                                       '展示タイム', 
+                                       '展示進入コース', 
+                                       '展示スタートタイム', 
+                                       'チルト', 
+                                       'プロペラ', 
+                                       '部品交換', 
+                                       'F数', 
+                                       'L数', 
+                                       '平均スタートタイム', 
+                                       '全国勝率', 
+                                       '全国2連対率', 
+                                       '全国3連対率', 
+                                       '当地勝率', 
+                                       '当地2連対率', 
+                                       '当地3連対率', 
+                                       'モーター番号', 
+                                       'モーター2連対率', 
+                                       'モーター3連対率', 
+                                       'ボート番号', 
+                                       'ボート2連対率', 
+                                       'ボート3連対率', 
+                                       '天候',
+                                       '気温',
+                                       '風速',
+                                       '風向',
+                                       '風種',
+                                       '水温',
+                                       '波高',
+                                       '3連単',
+                                       '3連複',
+                                       '2連単',
+                                       '2連複',
+                                       '拡連複',
+                                       '単勝',
+                                       '複勝'])
+    source_path = './各場データ/'+place+'BOATRACE'+str(year)+'年'+str(month)+'月'+str(day)+'日競走データ.csv'#./はカレントディレクトリを表す。
+    result_df.to_csv(source_path,encoding='utf_8_sig', index=False)
+    return result_df
+
 # 再掲
 # 
 # 用途
@@ -724,7 +972,21 @@ class PeriodOutput():
 # 2. 同ディレクトリの"初期化.py"を実行すると、各場の"場名"+"BOATRACE競争データ.csv"のファイルが作成される
 # 
 # 例
-# 多摩川ボートレース場の2021年1月1日から2021年12月31日の全レースの競争成績を取得したい場合
+# 多摩川ボートレース場の2021年1月3日から2021年1月7日の全レース（第４２回新春特別かどまつ賞）の競争成績を取得したい場合
 # ↓
-# a = PeriodOutput('2021-01-01','2021-12-31','多摩川')
+# a = PeriodOutput('2021-01-03','2021-01-07','多摩川')
 # a.AllPlaceOutput()
+# ↓
+# "各場データ"フォルダの"多摩川BOATRACE競争データ.csv"の末尾にデータが追加される
+#
+# 多摩川ボートレース場の2021年1月3日の全レースの競争成績を取得したい場合
+# ↓
+# OutputOneday_anotherfile(2021,1,3,'多摩川')
+# ↓
+# "各場データ"フォルダに"多摩川BOATRACE2021年1月3日競走データ.csv"というファイル名でデータが保存される
+# 
+# 多摩川ボートレース場の2021年1月3日の第1レースの競争成績を取得したい場合
+# ↓
+# OutputOneRace_anotherfile(2021,1,3,1,'多摩川')
+# ↓
+# "各場データ"フォルダに"多摩川BOATRACE2021年1月3日第1R競走データ.csv"というファイル名でデータが保存される
